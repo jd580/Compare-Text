@@ -1,29 +1,58 @@
-function Compare-Configuration
+<#
+.SYNOPSIS
+    Outputs a numbered, color coded comparison of two text documents.
+
+.DESCRIPTION
+    This function compares two text documents against eachother. The output revolves
+    around the reference and the differences are injected and highlighted to give the 
+    user a readable comparison to reference. 
+
+.PARAMETER ReferenceConfigPath
+    File path to the file to use as a reference
+
+.PARAMETER DifferenceConfigPath
+    File path to the file to compare against the reference
+
+.PARAMETER OutputPath
+    Path to output the compared file.
+
+.NOTES
+    Lines are numbered. 
+    Changes in the Difference file are highlighted in Red. 
+    If it is a change in texts, the difference is preceded but a green highlighted
+    line to show the Reference line that has been changed.
+#>
+
+function Compare-TextFile
 {
+    [CmdletBinding()]
     param
     (
         [Parameter(Mandatory = $true)]
         [string]
-        $ReferenceConfigPath,
+        $ReferenceFilePath,
 
         [Parameter(Mandatory = $true)]
         [string]
-        $DifferenceConfigPath,
+        $DifferenceFilePath,
 
         [Parameter()]
         [AllowNull()]
+        [string]
         $OutputPath
     )
 
-    $referenceConfig = Get-Content -Path $ReferenceConfigPath
-    $differenceConfig = Get-Content -Path $DifferenceConfigPath
+    ##TODO## add output path validation and action. 
+
+    $referenceContent = Get-Content -Path $ReferenceFilePath
+    $differenceContent = Get-Content -Path $DifferenceFilePath
 
     # Create line numbers
-    $numberedReference = Add-LineNumber -Text $referenceConfig
-    $numberedDifference = Add-LineNumber -Text $differenceConfig
+    $numberedReference = Add-LineNumber -Text $referenceContent
+    $numberedDifference = Add-LineNumber -Text $differenceContent
 
     # Compare initial objects
-    $textDifference = Compare-Object -ReferenceObject $referenceConfig -DifferenceObject $differenceConfig -IncludeEqual
+    $textDifference = Compare-Object -ReferenceObject $referenceContent -DifferenceObject $differenceContent -IncludeEqual
 
     # Compare objects with line numbers and sort by line number
     $numberedTextDifference = Compare-Object -ReferenceObject $numberedReference -DifferenceObject $numberedDifference -IncludeEqual -Property Text,LineNum
@@ -37,21 +66,23 @@ function Compare-Configuration
     }
 
     $numberedTextDifference = $numberedTextDifference | Sort-Object -Property LineNum
-    $newConfigurationParams = @{
-        TextDifference             = $textDifference
-        NumberedReference          = $numberedReference
-        NumberedDifference         = $numberedDifference
-        CombinedNumberedDifference = $numberedTextDifference
-    }
 
-    $newConfiguration = Get-NewConfiguration @newConfigurationParams
+    $textResult = Get-NewTextResult -TextDifference $textDifference -CombinedNumberedDifference $numberedTextDifference
 
-    Out-ConfigurationResult -Configuration $newConfiguration -OutputPath $OutputPath
-    
+    Out-TextResult -TextResult $textResult -OutputPath $OutputPath
 }
 
+<#
+.SYNOPSIS
+    Returns a custom object with each line of text relating to a line number
+
+.PARAMETER Text
+    The array of text objects to number
+#>
 function Add-LineNumber
 {
+    [CmdletBinding()]
+    [OutputType([System.Collections.ArrayList])]
     param
     (
         [Parameter(Mandatory = $true)]
@@ -75,21 +106,37 @@ function Add-LineNumber
     return $return
 }
 
+<#
+.SYNOPSIS
+    Returns a combined, ordered comparison text array
 
-function Get-NewConfiguration
+.DESCRIPTION
+    Get new Text-Comparison orders and formats the text into a useful text array.
+    Each line starts with a number. If there is no difference noted, it has no identifier. 
+    If it does, it identifies which file it representing. E.g ::Reference:: followed by the actual line text
+
+.PARAMETER TextDifference
+    The difference object without numbers
+
+.PARAMETER CombinedNumberedDifference
+    The numbered difference of both the Reference and Difference files.
+
+.NOTES
+General notes
+#>
+
+function Get-NewTextResult
 {
+    [CmdletBinding()]
+    [OutputType([System.Collections.ArrayList])]
     param
     (
         [Parameter(Mandatory = $true)]
+        [System.Object[]]
         $TextDifference,
 
         [Parameter(Mandatory = $true)]
-        $NumberedReference,
-
-        [Parameter(Mandatory = $true)]
-        $NumberedDifference,
-
-        [Parameter(Mandatory = $true)]
+        [System.Object[]]
         $CombinedNumberedDifference
     )
 
@@ -116,7 +163,6 @@ function Get-NewConfiguration
             '=>'
             {
                 $null = $differenceArray.Add($diff)
-                break
             }
         }
     }
@@ -151,7 +197,6 @@ function Get-NewConfiguration
 
                 $null = $finalCollection.Add($equalString)
                 $null = $equalArray.Remove($equalArray[0])
-
                 break
             }
             {$PSItem -eq $referenceArray[0].InputObject}
@@ -191,19 +236,32 @@ function Get-NewConfiguration
     return $finalCollection
 }
 
-function Out-ConfigurationResult
+<#
+.SYNOPSIS
+Writes the output to the Host and file if specified.
+
+.PARAMETER TextResult
+    Fully formatted text object to output
+
+.PARAMETER OutputPath
+    File path to output results.
+#>
+function Out-TextResult
 {
+    [CmdletBinding()]
     param
     (
         [Parameter(Mandatory = $true)]
-        $Configuration,
+        [System.Object[]]
+        $TextResult,
 
         [Parameter()]
         [AllowNull()]
+        [string]
         $OutputPath
     )
 
-    foreach ($line in $Configuration)
+    foreach ($line in $TextResult)
     {
         switch ($line)
         {
@@ -215,6 +273,7 @@ function Out-ConfigurationResult
             {$PSItem -match '.*::Difference::.*'}
             {
                 Write-Host -Object $line -BackgroundColor Red -ForegroundColor Black
+                break
             }
             default
             {
@@ -229,4 +288,4 @@ function Out-ConfigurationResult
     }
 }
 
-Compare-Configuration -ReferenceConfigPath 'C:\Users\phili\Desktop\Compare function\Config1.txt' -DifferenceConfigPath 'C:\Users\phili\Desktop\Compare function\Config2.txt'
+Compare-TextFile -ReferenceFilePath 'C:\Users\phili\Desktop\Compare function\Config1.txt' -DifferenceFilePath 'C:\Users\phili\Desktop\Compare function\Config2.txt' -OutputPath C:\Source\Repos\Compare-Text\test.txt
