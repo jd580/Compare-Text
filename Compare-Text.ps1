@@ -75,36 +75,6 @@ function Add-LineNumber
     return $return
 }
 
-function Collect-Whatever
-{
-    param
-    (
-        [Parameter()]
-        $DifferenceObject,
-
-        [Parameter()]
-        $NumberedDifferenceObject
-    )
-
-    $correct = $DifferenceObject | Where-Object -FilterScript {$_.SideIndicator -eq '=='}
-
-    $uniqueLineNum = $NumberedDifferenceObject.LineNum | Select-Object -Unique
-    $sortedLineNum = $uniqueLineNum | Sort-Object 
-    $returnArray = [System.Collections.ArrayList]::new()
-    # Collecting the Numbered Difference Objects that only have one line number
-    # This translates to the defference objects really having a '==' side indicator in the normal difference 
-    foreach ($num in $sortedLineNum)
-    {
-        $lineobject = $NumberedDifferenceObject | Where-Object -FilterScript {$_.LineNum -eq $num}
-
-        if ($lineobject.Text.count -eq 1)
-        {
-            $null = $returnArray.Add($lineobject)
-        }
-    }
-
-    return $returnArray
-}
 
 function Get-NewConfiguration
 {
@@ -127,6 +97,7 @@ function Get-NewConfiguration
     $equalArray = [System.Collections.ArrayList]::new()
     $referenceArray = [System.Collections.ArrayList]::new()
     $differenceArray = [System.Collections.ArrayList]::new()
+
     # separate $TextDifference into appropriate arrays
     foreach ($diff in $textDifference)
     {
