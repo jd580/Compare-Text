@@ -192,7 +192,7 @@ function Get-NewTextResult
                 }
                 
                 $strLine = $line.Text
-                $strLine = "$strLine".replace("`t"," ")
+                $strLine = $strLine.replace("`t"," ")
                 $equalString = "[{0}]`t{1}" -f $lineCount, $strLine 
 
                 $null = $finalCollection.Add($equalString)
@@ -233,6 +233,22 @@ function Get-NewTextResult
         $lineCount++
     }
 
+    # If the process ends with any lines in $differenceArray, those lines are lost. so we need 
+    # to clarify that everything is added to the $finalCollection here.
+
+    if ($diffCollection.Count -gt 0)
+    {
+        [int] $byte = 97 # Lowercase A
+        foreach ($diffLine in $diffCollection)
+        {
+            $diffLineCount = "$($lineCount - 1).$([CHAR][BYTE]$byte)"
+            $diffString = "[{0}]::Difference::`t{1}" -f $diffLineCount, $diffLine
+            $byte ++
+
+            $null = $finalCollection.Add($diffString)
+        }
+    }
+
     return $finalCollection
 }
 
@@ -261,6 +277,11 @@ function Out-TextResult
         $OutputPath
     )
 
+    if ($OutputPath)
+    {
+        $TextResult | Out-File -FilePath $OutputPath 
+    }
+
     foreach ($line in $TextResult)
     {
         switch ($line)
@@ -280,12 +301,7 @@ function Out-TextResult
                 Write-Output -InputObject $line
             }
         }
-
-        if ($OutputPath)
-        {
-            Out-File -InputObject $line -FilePath $OutputPath -Append 
-        }
     }
 }
 
-Compare-TextFile -ReferenceFilePath 'C:\Users\phili\Desktop\Compare function\Config1.txt' -DifferenceFilePath 'C:\Users\phili\Desktop\Compare function\Config2.txt' -OutputPath C:\Source\Repos\Compare-Text\test.txt
+#$time = Measure-Command {Compare-TextFile -ReferenceFilePath 'C:\Temp\test1.txt' -DifferenceFilePath 'C:\Temp\test2.txt' -OutputPath C:\temp\outputtest.txt}
