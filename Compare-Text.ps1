@@ -52,57 +52,51 @@ function Compare-TextFile
     $differenceContent = Get-Content -Path $DifferenceFilePath
 
     # Create line numbers
-    $lineNumberTime = Measure-Command {
+    #$lineNumberTime = Measure-Command {
         $numberedReference = Add-LineNumber -Text $referenceContent
         $numberedDifference = Add-LineNumber -Text $differenceContent
-    }
+    #}
     # Compare initial objects
-    $normalCompareTime = Measure-Command {
+    #$normalCompareTime = Measure-Command {
         $textComparison = Compare-Object -ReferenceObject $referenceContent -DifferenceObject $differenceContent -IncludeEqual
-    }
+    #}
 
     # Compare objects with line numbers and sort by line number
     #$numberedCompareTime = Measure-Command {
     #    $numberedTextComparison = Compare-Object -ReferenceObject $numberedReference -DifferenceObject $numberedDifference -IncludeEqual -Property Text,LineNum
     #}
-    $numberedCompareTime2 = Measure-Command {
-        $numberedTextComparison2 = Format-ComparedObject -NumberedReference $numberedReference -NumberedDifference $numberedDifference -TextComparison $textComparison
-    }
+    #$numberedCompareTime = Measure-Command {
+        $numberedTextComparison = Format-ComparedObject -NumberedReference $numberedReference -NumberedDifference $numberedDifference -TextComparison $textComparison
+    #}
 
-    $renumberTime = Measure-Command {
-        foreach ($line in ($numberedTextComparison | where {$_.SideIndicator -eq '=>'}))
-        {
-            $line.LineNum = $line.LineNum - 1
-        }
-    }
-    $numberSortingTime = Measure-Command {
+    #$numberSortingTime = Measure-Command {
         $numberedTextComparison = $numberedTextComparison | Sort-Object -Property LineNum
-    }
-    $FullSortingtime = Measure-Command {
+    #}
+    #$FullSortingtime = Measure-Command {
         $textResult = Get-NewTextResult -TextComparison $textComparison -CombinedNumberedDifference $numberedTextComparison
-    }
-    $outingTime = Measure-Command {
+    #}
+    #$outingTime = Measure-Command {
         if ($SkipOutput)
         {
             Out-TextResult -TextResult $textResult -OutputPath $OutputPath -SkipOutput
         }
         else
         {
-            Out-TextResult -TextResult $textResult -OutputPath $OutputPat
+            Out-TextResult -TextResult $textResult -OutputPath $OutputPath
         }
-    }
+    #}
 
-    $return = @{
-        LineNumbering = $lineNumberTime
-        NormalCompare = $normalCompareTime
-        NumberCompare = $numberedCompareTime
-        Renumbering   = $renumberTime
-        NumberSorting = $numberSortingTime
-        FullSorting   = $FullSortingtime
-        OutingTime    = $outingTime
-    }
-
-    return $return
+    #$return = @{
+    #    LineNumbering = $lineNumberTime
+    #    NormalCompare = $normalCompareTime
+    #    NumberCompare = $numberedCompareTime
+    #    Renumbering   = $renumberTime
+    #    NumberSorting = $numberSortingTime
+    #    FullSorting   = $FullSortingtime
+    #    OutingTime    = $outingTime
+    #}
+    #
+    #return $return
 }
 
 <#
@@ -206,9 +200,9 @@ function Get-NewTextResult
     $lineCount = 1
     foreach ($line in $CombinedNumberedDifference)
     {
-        switch ($line.InputObject.Text) 
+        switch ($line.Text) 
         {
-            {$PSItem -eq $equalArray[0].InputObject.Text} 
+            {$PSItem -eq $equalArray[0].InputObject} 
             {
                 if ($diffCollection.Count -gt 0)
                 {
@@ -418,6 +412,8 @@ function Format-ComparedObject
         $numberedDifferenceClone.Remove($obj)
     }
 
+    [System.Collections.ArrayList] $numberedDifferenceClone = Group-Difference -DifferenceArray $numberedDifferenceClone
+
     $combinedList = [System.Collections.ArrayList]::new()
     $combinedList.AddRange($numberedReferenceClone)
     $combinedList.AddRange($numberedDifferenceClone)
@@ -425,4 +421,50 @@ function Format-ComparedObject
     return $combinedList
 }
 
-$Totaltime = Measure-Command { $timeResults = Compare-TextFile -ReferenceFilePath 'C:\Temp\test1.txt' -DifferenceFilePath 'C:\Temp\test2.txt' -OutputPath C:\temp\outputtest.txt }
+function Group-Difference
+{
+    param
+    (
+        [Parameter(Mandatory = $true)]
+        [System.Collections.ArrayList]
+        $DifferenceArray
+    )
+
+    [System.Collections.ArrayList] $DifferenceArrayClone = $DifferenceArray.Clone()
+    foreach ($index in 0..($DifferenceArray.Count - 1))
+    {
+        $tracking = [System.Collections.ArrayList]::new()
+        if ($index -notin $tracking)
+        {
+            $null = $tracking.Add($index)
+            $baseLineNumber = $DifferenceArray[$index].LineNum
+            $addCount = 1
+
+            while ($true)
+            {
+                if (($baseLineNumber + $addCount) -eq ($DifferenceArray[($index + $addCount)].LineNum))
+                {
+                    $null = $tracking.Add($index + $addCount)
+                    $finalLineNumber = $baseLineNumber + $addCount
+                    $addCount++
+                }
+                else
+                {
+                    if ($tracking.Count -gt 1)
+                    {
+                        foreach ($item in $tracking)
+                        {
+                            $DifferenceArrayClone[$item].LineNum = $finalLineNumber
+                        }
+                    }
+
+                    break
+                }
+            }
+        }
+    }
+
+    return $DifferenceArrayClone
+}
+
+<#$Totaltime = Measure-Command { $timeResults = #>Compare-TextFile -ReferenceFilePath 'C:\Temp\test3.txt' -DifferenceFilePath 'C:\Temp\test4.txt' -OutputPath C:\temp\outputtest.txt #}
