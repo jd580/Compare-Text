@@ -46,7 +46,7 @@ function Compare-TextFile
         $SkipOutput
     )
 
-    ##TODO## add output path validation and action.  Cleaning/prepare input files to reduce errors.
+    #TODO# add output path validation and action.  Cleaning/prepare input files to reduce errors.
 
     $referenceContent = Get-Content -Path $ReferenceFilePath
     $differenceContent = Get-Content -Path $DifferenceFilePath
